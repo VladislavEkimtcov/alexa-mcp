@@ -12,9 +12,19 @@ import Alexa from 'alexa-remote2';
 import { writeFileSync, mkdirSync, existsSync, chmodSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { homedir } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const AUTH_DIR = join(__dirname, '..', '.auth-data');
+
+function resolveAuthDir() {
+  const envDir = process.env.ALEXA_MCP_AUTH_DIR;
+  if (envDir) {
+    return envDir.startsWith('~/') ? join(homedir(), envDir.slice(2)) : envDir;
+  }
+  return join(__dirname, '..', '.auth-data');
+}
+
+const AUTH_DIR = resolveAuthDir();
 const AUTH_FILE = join(AUTH_DIR, 'auth.json');
 
 if (!existsSync(AUTH_DIR)) {
@@ -61,7 +71,28 @@ alexa.init(
         return;
       }
 
-      // Real error
+      // Some accounts complete the cookie capture but fail the post-auth
+      // device-registration step. If we got the cookie, persist it anyway —
+      // the MCP server only needs the cookie to make API calls.
+      if (alexa.cookie) {
+        if (!existsSync(AUTH_DIR)) mkdirSync(AUTH_DIR, { recursive: true });
+        const authData = {
+          cookie: alexa.cookie,
+          formerRegistrationData: alexa.cookieData || {},
+          amazonPage: 'amazon.com',
+          authenticatedAt: new Date().toISOString(),
+        };
+        writeFileSync(AUTH_FILE, JSON.stringify(authData, null, 2), 'utf8');
+        chmodSync(AUTH_FILE, 0o600);
+        console.log('');
+        console.log(`Advertencia post-auth: ${msg}`);
+        console.log('Cookie capturada y guardada de todos modos.');
+        console.log(`Credenciales guardadas en: ${AUTH_FILE}`);
+        setTimeout(() => process.exit(0), 1000);
+        return;
+      }
+
+      // Real error without cookie
       console.error('Error durante la autenticacion:', msg);
       process.exit(1);
     }

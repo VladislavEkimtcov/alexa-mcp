@@ -76,6 +76,20 @@ You only need to run this once. From then on, `alexa-remote2` refreshes tokens a
 
 > **Region note:** the helper defaults to `amazon.com` and Spanish locale (`es-MX`). If your account lives in another marketplace (`amazon.de`, `amazon.co.uk`, `amazon.com.mx`, etc.) edit `src/auth.js` accordingly. PRs welcome to make this configurable via env vars.
 
+### Multiple Alexa accounts (multi-instance)
+
+A single clone of this repo can serve **multiple Alexa accounts** by setting the `ALEXA_MCP_AUTH_DIR` env var to point at a per-instance directory:
+
+```bash
+# Authenticate the personal account
+ALEXA_MCP_AUTH_DIR=~/.alexa-mcp/personal npm run auth
+
+# Authenticate a second (e.g. work) account
+ALEXA_MCP_AUTH_DIR=~/.alexa-mcp/work npm run auth
+```
+
+Each instance keeps its own `auth.json` in its own directory, so they never collide. The default (when `ALEXA_MCP_AUTH_DIR` is unset) remains the project-local `.auth-data/` for the simple single-account case. See [Usage with Claude Desktop](#usage-with-claude-desktop) below for how to register two MCP servers from the same code.
+
 ---
 
 ## Usage with Claude Desktop

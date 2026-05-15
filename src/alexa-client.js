@@ -2,9 +2,19 @@ import Alexa from 'alexa-remote2';
 import { readFileSync, writeFileSync, existsSync, chmodSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { homedir } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const AUTH_DIR = join(__dirname, '..', '.auth-data');
+
+function resolveAuthDir() {
+  const envDir = process.env.ALEXA_MCP_AUTH_DIR;
+  if (envDir) {
+    return envDir.startsWith('~/') ? join(homedir(), envDir.slice(2)) : envDir;
+  }
+  return join(__dirname, '..', '.auth-data');
+}
+
+const AUTH_DIR = resolveAuthDir();
 const AUTH_FILE = join(AUTH_DIR, 'auth.json');
 
 export class AlexaClient {
