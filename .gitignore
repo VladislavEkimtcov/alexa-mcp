@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Authentication tokens — NEVER commit
+.auth-data/
+*.cookie
+*.token
+*.pem
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local Claude Code context (not for public repo)
+CLAUDE.md
+.claude/

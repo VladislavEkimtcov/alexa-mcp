@@ -1,0 +1,41 @@
+{
+  "name": "alexa-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP (Model Context Protocol) server that lets Claude and other LLMs control Amazon Alexa devices via alexa-remote2.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "auth": "node src/auth.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "alexa",
+    "amazon-echo",
+    "smart-home",
+    "claude",
+    "anthropic",
+    "alexa-remote2",
+    "voice-assistant"
+  ],
+  "author": "Renato Ascencio",
+  "license": "MIT",
+  "homepage": "https://github.com/RenatoAscencio/alexa-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RenatoAscencio/alexa-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RenatoAscencio/alexa-mcp/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "alexa-remote2": "^8.0.4",
+    "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}
