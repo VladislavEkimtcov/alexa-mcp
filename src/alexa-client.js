@@ -1,5 +1,12 @@
 import Alexa from 'alexa-remote2';
-import { readFileSync, writeFileSync, existsSync, chmodSync } from 'fs';
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  chmodSync,
+  renameSync,
+  copyFileSync,
+} from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
@@ -17,6 +24,23 @@ function resolveAuthDir() {
 const AUTH_DIR = resolveAuthDir();
 const AUTH_FILE = join(AUTH_DIR, 'auth.json');
 
+/**
+ * A registration is only usable if it carries everything alexa-remote2 needs
+ * to authenticate without a browser: the session cookie, the refresh token and
+ * the signing keys (macDms). Anything less means a login prompt later on.
+ */
+function isCompleteRegistration(reg) {
+  return !!(
+    reg &&
+    typeof reg.localCookie === 'string' &&
+    reg.localCookie.length > 0 &&
+    reg.refreshToken &&
+    reg.macDms &&
+    reg.macDms.adp_token &&
+    reg.macDms.device_private_key
+  );
+}
+
 export class AlexaClient {
   constructor() {
     this.alexa = new Alexa();
@@ -33,6 +57,30 @@ export class AlexaClient {
       );
     }
 
+    const registration = savedAuth.formerRegistrationData;
+    const seenTokenDate = registration && registration.tokenDate;
+
+    // Persist every registration alexa-remote2 hands us. It emits 'cookie'
+    // after the initial load and again after each refresh; only the refreshes
+    // carry a new tokenDate, and those are the ones that must reach disk, or
+    // the next process would refresh from an already-rotated refreshToken and
+    // Amazon would send us back to the login page.
+    if (!this._persistListenerAttached) {
+      this._persistListenerAttached = true;
+      this.alexa.on('cookie', () => {
+        const fresh = this.alexa.cookieData;
+        if (!isCompleteRegistration(fresh)) return;
+        if (fresh.tokenDate === seenTokenDate) return;
+        this._saveAuth({
+          cookie: fresh.localCookie,
+          formerRegistrationData: fresh,
+          amazonPage: fresh.amazonPage || savedAuth.amazonPage || 'amazon.com',
+          authenticatedAt: savedAuth.authenticatedAt,
+          refreshedAt: new Date().toISOString(),
+        });
+      });
+    }
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Connection timeout after 30s'));
@@ -40,8 +88,15 @@ export class AlexaClient {
 
       this.alexa.init(
         {
-          cookie: savedAuth.cookie,
-          formerRegistrationData: savedAuth.formerRegistrationData,
+          // Hand over the whole registration object, not just the cookie
+          // string. Given the object, alexa-remote2 recovers macDms and skips
+          // the call to Amazon while the token is under 24h old; given a bare
+          // string it cannot, and every single init rotates the token.
+          cookie: isCompleteRegistration(registration)
+            ? registration
+            : savedAuth.cookie,
+          formerRegistrationData: registration,
+          macDms: registration && registration.macDms,
           proxyOwnIp: '127.0.0.1',
           proxyPort: 0,
           amazonPage: savedAuth.amazonPage || 'amazon.com',
@@ -65,16 +120,6 @@ export class AlexaClient {
             return;
           }
           this.initialized = true;
-
-          // Save refreshed auth data
-          this.alexa.cookie &&
-            this._saveAuth({
-              cookie: this.alexa.cookie,
-              formerRegistrationData:
-                this.alexa.cookieData || savedAuth.formerRegistrationData,
-              amazonPage: savedAuth.amazonPage,
-            });
-
           resolve();
         }
       );
@@ -368,7 +413,21 @@ export class AlexaClient {
   }
 
   _saveAuth(data) {
-    writeFileSync(AUTH_FILE, JSON.stringify(data, null, 2), 'utf8');
-    chmodSync(AUTH_FILE, 0o600);
+    if (!isCompleteRegistration(data && data.formerRegistrationData)) {
+      // Never let a partial refresh overwrite a working registration.
+      return false;
+    }
+    try {
+      if (existsSync(AUTH_FILE)) copyFileSync(AUTH_FILE, `${AUTH_FILE}.prev`);
+      // Write to a temp file and rename, so a crash mid-write cannot leave a
+      // truncated auth.json behind (that also costs a full re-login).
+      const tmp = `${AUTH_FILE}.tmp`;
+      writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+      chmodSync(tmp, 0o600);
+      renameSync(tmp, AUTH_FILE);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

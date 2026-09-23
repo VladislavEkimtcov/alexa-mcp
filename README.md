@@ -160,6 +160,7 @@ Once configured, you can ask Claude things like:
 | MCP doesn't appear in Claude | Confirm the path in your client config is absolute, then restart the client |
 | Wrong language / region | Edit `amazonPage` and `acceptLanguage` in `src/auth.js`, then re-auth |
 | `EADDRINUSE` on port 3457 during auth | Kill whatever is using port 3457, or change `PROXY_PORT` in `src/auth.js` |
+| Asked to log in again soon after authenticating | Upgrade to v1.1.1 or later. Earlier versions rotated the Amazon token on every start and never saved the new one. The previous registration is kept in `auth.json.prev` |
 
 ---
 

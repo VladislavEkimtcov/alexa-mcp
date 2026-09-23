@@ -79,7 +79,7 @@ alexa.init(
         const authData = {
           cookie: alexa.cookie,
           formerRegistrationData: alexa.cookieData || {},
-          amazonPage: 'amazon.com',
+          amazonPage: (alexa.cookieData && alexa.cookieData.amazonPage) || 'amazon.com',
           authenticatedAt: new Date().toISOString(),
         };
         writeFileSync(AUTH_FILE, JSON.stringify(authData, null, 2), 'utf8');
@@ -101,7 +101,7 @@ alexa.init(
     const authData = {
       cookie: alexa.cookie,
       formerRegistrationData: alexa.cookieData,
-      amazonPage: 'amazon.com',
+      amazonPage: (alexa.cookieData && alexa.cookieData.amazonPage) || 'amazon.com',
       authenticatedAt: new Date().toISOString(),
     };
 

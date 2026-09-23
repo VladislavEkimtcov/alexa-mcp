@@ -11,6 +11,16 @@ Bitácora cronológica de cambios significativos en este proyecto.
 
 ---
 
+## 2026-09-22 — v1.1.1
+
+### La sesión de Amazon ya no se cae a cada rato
+
+- Causa: `init()` pasaba la cookie como texto; sin el objeto de registro, `alexa-remote2` no recupera `macDms` y **refrescaba el token contra Amazon en cada arranque**. El token nuevo nunca se guardaba, así que el siguiente arranque partía de uno ya rotado y pedía login.
+- `alexa-client.js`: se entrega el registro completo (con `macDms`), así que mientras el token tenga menos de 24 h no hay llamada a Amazon. Los refrescos reales (nuevo `tokenDate`) sí se persisten.
+- `_saveAuth()`: valida que el registro esté completo, escribe de forma atómica (`.tmp` + rename) y deja `auth.json.prev` como respaldo.
+- `auth.js`: guarda el `amazonPage` real de la cuenta (antes fijo `amazon.com`, lo que rompía cuentas de otros dominios como `amazon.com.mx`).
+- Verificado en la instancia `personal`: 5 arranques seguidos sin refresco y `auth.json` intacto.
+
 ## 2026-05-15 — v1.1.0
 
 ### Soporte multi-instancia
