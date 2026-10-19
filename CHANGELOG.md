@@ -13,6 +13,21 @@ Bitácora cronológica de cambios significativos en este proyecto.
 
 ## Sin publicar
 
+### Nuevas herramientas de dispositivos domóticos: `alexa_list_smarthome_summary`, `alexa_set_device_enabled`, `alexa_delete_smarthome_device`
+
+- `alexa_list_smarthome_summary` (solo lectura): nombre, `applianceId`, estado, categoría, fabricante y grupos de cada dispositivo. El listado completo pesa ~900k caracteres y no se puede leer en línea.
+- `alexa_set_device_enabled`: activa o desactiva un dispositivo con `setEnablementForSmarthomeDevice` de `alexa-remote2` (`PUT /api/phoenix/v2/appliance/{id}/enablement`). **Sin verificar contra una cuenta real** (el endpoint sale del código de la librería).
+- `alexa_delete_smarthome_device`: borra la entrada con `DELETE /api/phoenix/appliance/{id}`. Se niega si algún grupo todavía lo lista. Los dispositivos de una skill vuelven a aparecer en el siguiente descubrimiento si no se quitan en la app del fabricante. **Verificado contra una cuenta real** (2026-10-19): se borraron dos entradas y la lista pasó de 42 a 40 sin que cambiara nada más.
+- Seguro por diseño, igual que `alexa_delete_routine`: exigen `applianceId` **y** el nombre exacto (hay nombres repetidos, p. ej. «Living Room», «Braava jet»); si no coinciden, no cambian nada.
+- `devices.js` (nuevo, sin red): `findDeviceToChange()`, `groupsContaining()`, `assertNotInGroup()`, `summarizeDevices()`, con `test/devices.test.mjs`.
+
+### Nueva herramienta `alexa_delete_routine`
+
+- Borra una rutina con `DELETE /api/behaviors/automations/{automationId}`. `alexa-remote2` solo trae listar y ejecutar rutinas. Ojo: la ruta `/api/behaviors/v2/automations/{id}` (la de listar) **no** sirve para borrar: responde 404 sin cuerpo incluso con GET.
+- Seguro por diseño: exige `automationId` **y** el nombre exacto; si no coinciden, o la rutina no existe, no borra nada. Devuelve la definición borrada para poder recrearla en la app.
+- `routines.js` (nuevo, sin red): `findRoutineToDelete()` y `describeRoutine()`, con `test/routines.test.mjs`. `alexa-client.js`: `deleteRoutine()` vuelve a leer la lista antes de borrar.
+- Verificado contra una cuenta real: se borró una rutina existente (73 → 72 rutinas, solo desapareció esa). Antes, con un `automationId` inexistente, la ruta sin `v2` responde `{"message":"Object not found."}`.
+
 ### Nueva herramienta `alexa_get_voice_history` (solo lectura)
 
 - Lista lo que se le dijo a cada Echo en una franja horaria diaria (por defecto de noche, 22–07) de los últimos N días: dispositivo, transcripción y respuesta de Alexa. Sirve para averiguar qué Echo disparó una acción inesperada.

@@ -11,7 +11,7 @@ Built on top of [`alexa-remote2`](https://github.com/Apollon77/alexa-remote) (th
 
 ## Features
 
-19 tools exposed over MCP, grouped by domain:
+23 tools exposed over MCP, grouped by domain:
 
 **Devices**
 - `alexa_list_devices` — list every Echo in the account with serial, type, online status
@@ -25,12 +25,16 @@ Built on top of [`alexa-remote2`](https://github.com/Apollon77/alexa-remote) (th
 
 **Smart home**
 - `alexa_list_smarthome_devices` — list all paired smart-home devices (lights, sensors, switches…)
+- `alexa_list_smarthome_summary` — read-only compact listing (name, applianceId, enablement, groups) of every smart-home device; the full listing is far too large to read
+- `alexa_set_device_enabled` — enable or disable one device (the app's "Disable device"); needs its `applianceId` and exact name, and refuses if they don't match
+- `alexa_delete_smarthome_device` — remove one device entry; needs `applianceId` and exact name, and refuses if a group still lists it. Skill-linked devices come back on the next discovery unless removed in the vendor app
 - `alexa_query_device` — read the current state of one or more devices
 - `alexa_list_groups` / `alexa_create_group` / `alexa_update_group` / `alexa_delete_group` — manage rooms / groups
 
 **Routines**
 - `alexa_list_routines` — list every routine in the account
 - `alexa_execute_routine` — run a routine by passing its automation definition
+- `alexa_delete_routine` — permanently delete one routine; needs its `automationId` and exact name, and refuses if they don't match. Returns the deleted definition so it can be recreated in the app
 
 **Lists**
 - `alexa_list_lists` — list shopping / to-do / custom lists
@@ -172,9 +176,10 @@ Once configured, you can ask Claude things like:
 ```
 alexa-mcp/
 ├── src/
-│   ├── index.js         # MCP server entry point — registers all 19 tools
+│   ├── index.js         # MCP server entry point — registers all 23 tools
 │   ├── alexa-client.js  # Thin wrapper around alexa-remote2
 │   ├── voice-history.js # Time windows and paging for alexa_get_voice_history
+│   ├── routines.js      # ID + name safety check for alexa_delete_routine
 │   └── auth.js          # Interactive auth flow (run once)
 ├── .auth-data/          # OAuth tokens (created at first auth, git-ignored)
 ├── package.json

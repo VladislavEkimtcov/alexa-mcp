@@ -44,7 +44,7 @@ alexa.init(
     proxyOnly: true,
     proxyOwnIp: 'localhost',
     proxyPort: PROXY_PORT,
-    proxyListenBind: '0.0.0.0',
+    proxyListenBind: '127.0.0.1',
     amazonPage: 'amazon.com',
     acceptLanguage: 'es-MX',
     amazonPageProxyLanguage: 'es_MX',

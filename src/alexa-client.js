@@ -10,6 +10,8 @@ import {
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
+import { findRoutineToDelete } from './routines.js';
+import { findDeviceToChange, assertNotInGroup } from './devices.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -168,6 +170,27 @@ export class AlexaClient {
     });
   }
 
+  async setDeviceEnabled(applianceId, expectedName, enabled) {
+    const device = findDeviceToChange(await this.getSmarthomeDevices(), applianceId, expectedName);
+    this._enrichCookie();
+    await new Promise((resolve, reject) => {
+      this.alexa.setEnablementForSmarthomeDevice(applianceId, enabled, (err) =>
+        err ? reject(err) : resolve()
+      );
+    });
+    return device;
+  }
+
+  async deleteSmarthomeDevice(applianceId, expectedName) {
+    const device = findDeviceToChange(await this.getSmarthomeDevices(), applianceId, expectedName);
+    assertNotInGroup(await this.getSmarthomeGroups(), applianceId, expectedName);
+    this._enrichCookie();
+    await new Promise((resolve, reject) => {
+      this.alexa.deleteSmarthomeDevice(applianceId, (err) => (err ? reject(err) : resolve()));
+    });
+    return device;
+  }
+
   async querySmarthomeDevices(entityIds) {
     await this.init();
     return new Promise((resolve, reject) => {
@@ -267,6 +290,19 @@ export class AlexaClient {
         resolve({ success: true });
       });
     });
+  }
+
+  async deleteRoutine(automationId, expectedName) {
+    const routine = findRoutineToDelete(await this.getRoutines(), automationId, expectedName);
+    this._enrichCookie();
+    await new Promise((resolve, reject) => {
+      this.alexa.httpsGet(
+        `/api/behaviors/automations/${encodeURIComponent(automationId)}`,
+        (err) => (err ? reject(err) : resolve()),
+        { method: 'DELETE' }
+      );
+    });
+    return routine;
   }
 
   // --- Lists ---
