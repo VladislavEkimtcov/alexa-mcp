@@ -10,7 +10,15 @@ import {
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
-import { findRoutineToDelete } from './routines.js';
+import {
+  findRoutineToDelete,
+  addSmarthomeSteps,
+  buildRoutineWriteBody,
+  collectSmarthomeSteps,
+} from './routines.js';
+
+// Version header the Alexa app sends with routine writes (value taken from snordquist/alexa-mcp).
+const ROUTINES_VERSION = '3.0.264101';
 import { findDeviceToChange, assertNotInGroup } from './devices.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -303,6 +311,66 @@ export class AlexaClient {
       );
     });
     return routine;
+  }
+
+  /** Ask Amazon to normalize an action payload; hand-built ones fail with "Input failed to validate". */
+  _validateOperation(type, operationPayload) {
+    return new Promise((resolve, reject) => {
+      this.alexa.httpsGet(
+        '/api/behaviors/operation/validate',
+        (err, res) => {
+          if (err) return reject(err);
+          if (!res || res.result !== 'VALID') {
+            return reject(new Error(`Amazon did not validate the step: ${JSON.stringify(res)}`));
+          }
+          // Some step types (smart home, seen live 2026-11-09) come back VALID with no
+          // normalized payload: keep the original then.
+          resolve(res.operationPayload || operationPayload);
+        },
+        { method: 'POST', data: JSON.stringify({ type, operationPayload: JSON.stringify(operationPayload) }) }
+      );
+    });
+  }
+
+  /**
+   * Add smart-home steps to an existing routine. Dry run unless `apply` is true.
+   * When applied, the routine is written in Amazon's flat write format (see
+   * buildRoutineWriteBody) and then re-read: a 200 alone is not trusted, because
+   * Amazon silently ignores a wrong body. Throws if the steps are not there afterwards.
+   */
+  async addRoutineSteps(automationId, expectedName, operation, targets, apply) {
+    const current = findRoutineToDelete(await this.getRoutines(), automationId, expectedName);
+    const { routine, added, addedNodes } = addSmarthomeSteps(current, operation, targets);
+    if (!apply || added.length === 0) return { applied: false, added, routine };
+    await this.init();
+    this._enrichCookie();
+    for (const node of addedNodes) {
+      node.operationPayload = await this._validateOperation(node.type, node.operationPayload);
+    }
+    const body = buildRoutineWriteBody(routine);
+    const response = await new Promise((resolve, reject) => {
+      this.alexa.httpsGet(
+        `/api/behaviors/automations/${encodeURIComponent(automationId)}`,
+        (err, res) => (err ? reject(err) : resolve(res)),
+        {
+          method: 'PUT',
+          data: JSON.stringify(body),
+          headers: { 'Routines-Version': ROUTINES_VERSION, 'Content-Type': 'application/json' },
+        }
+      );
+    });
+    let after = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 1500));
+      after = (await this.getRoutines()).find((r) => r.automationId === automationId);
+      const have = new Set(collectSmarthomeSteps(after));
+      if (added.every((t) => have.has(`${t}|${operation}`))) {
+        return { applied: true, verified: true, added, routine: after, response };
+      }
+    }
+    throw new Error(
+      `Amazon accepted the request but the routine did not change (response: ${JSON.stringify(response)}). Nothing was verified as saved.`
+    );
   }
 
   // --- Lists ---

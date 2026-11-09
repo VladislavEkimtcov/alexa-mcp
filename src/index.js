@@ -360,6 +360,53 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  'alexa_add_routine_steps',
+  {
+    title: 'Add Smart Home Steps to Routine',
+    description:
+      'Append smart-home turnOn or turnOff steps to an existing routine, for example to add a Halo turn-off to a bedtime routine. Requires the routine automationId and exact name. Dry run by default: returns the proposed change and writes nothing. Set apply to true to save it. Steps already present are skipped.',
+    inputSchema: z.object({
+      automationId: z.string().describe('The routine automationId from alexa_list_routines'),
+      name: z.string().describe('The routine exact name, as a safety check'),
+      operation: z.enum(['turnOn', 'turnOff']).describe('The smart-home operation to add'),
+      targets: z
+        .array(z.string())
+        .min(1)
+        .describe('Device or group entity IDs to act on (use device IDs, not group IDs, as routines do)'),
+      apply: z.boolean().default(false).describe('false = dry run (default); true = save the change'),
+    }),
+  },
+  async ({ automationId, name, operation, targets, apply }) => {
+    try {
+      const result = await client.addRoutineSteps(automationId, name, operation, targets, apply);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                applied: result.applied,
+                ...(result.verified ? { verified: true } : {}),
+                added: result.added,
+                routine: describeRoutine(result.routine),
+                ...(apply ? {} : { note: 'Dry run. Nothing saved. Repeat with apply: true to save.' }),
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
 // ============================================================
 // TOOL: Compact Smart Home Device Summary
 // ============================================================

@@ -13,6 +13,14 @@ Bitácora cronológica de cambios significativos en este proyecto.
 
 ## Sin publicar
 
+### `alexa_add_routine_steps`: rellena rutinas vacías y por fin guarda de verdad
+
+- Una rutina creada en la app solo trae un nodo `DoNothing` (`skillId: noop`) como `startNode`, sin `nodesToExecute`, y la herramienta respondía «Routine has no sequence to append to». Ahora sustituye ese marcador por la estructura de las rutinas reales (`SerialNode` > `ParallelNode` > nodos `Alexa.SmartHome.Batch`), con el `customerId` del propietario.
+- **El guardado antes no hacía nada:** el `PUT /api/behaviors/automations/{id}` enviaba la forma de lectura (objetos anidados) y Amazon respondía 200 sin cambiar nada (2026-11-09: `applied: true`, rutina intacta). La escritura exige un cuerpo plano: `behaviorId`, `name`, `status`, `triggerJson` y `triggerJsonList` (cadenas JSON; el `payload` del disparador también es una cadena y su `id` va a `null`) y `sequenceJson` (cadena JSON; `context: null` en cada acción). Formato tomado de la documentación de `snordquist/alexa-mcp` (MIT): `buildRoutineWriteBody()` en `routines.js`.
+- Antes de guardar, cada paso nuevo pasa por `POST /api/behaviors/operation/validate`; los pasos de domótica vuelven `VALID` sin `operationPayload` normalizado, y entonces se conserva el original. Se envía la cabecera `Routines-Version`.
+- **Ya no se fía de un 200:** tras el `PUT` vuelve a leer la rutina (hasta 3 intentos) y lanza error si los pasos no aparecen; la respuesta incluye `verified: true`. `collectSmarthomeSteps()` hace esa comprobación.
+- **Verificado contra una cuenta real** (2026-11-09): `turn on lights` y `turn off lights` (vacías) recibieron 5 pasos cada una; la lectura independiente del servidor MCP los mostró y el disparador y el estado quedaron intactos. Pruebas sin red en `test/routines.test.mjs` (casos 9 y 10).
+
 ### Nuevas herramientas de dispositivos domóticos: `alexa_list_smarthome_summary`, `alexa_set_device_enabled`, `alexa_delete_smarthome_device`
 
 - `alexa_list_smarthome_summary` (solo lectura): nombre, `applianceId`, estado, categoría, fabricante y grupos de cada dispositivo. El listado completo pesa ~900k caracteres y no se puede leer en línea.
