@@ -11,7 +11,7 @@ Built on top of [`alexa-remote2`](https://github.com/Apollon77/alexa-remote) (th
 
 ## Features
 
-23 tools exposed over MCP, grouped by domain:
+24 tools exposed over MCP, grouped by domain:
 
 **Devices**
 - `alexa_list_devices` — list every Echo in the account with serial, type, online status
@@ -35,6 +35,7 @@ Built on top of [`alexa-remote2`](https://github.com/Apollon77/alexa-remote) (th
 - `alexa_list_routines` — list every routine in the account
 - `alexa_execute_routine` — run a routine by passing its automation definition
 - `alexa_delete_routine` — permanently delete one routine; needs its `automationId` and exact name, and refuses if they don't match. Returns the deleted definition so it can be recreated in the app
+- `alexa_add_routine_steps` — append smart-home `turnOn`/`turnOff` steps to an existing routine (also fills a just-created empty one); needs its `automationId` and exact name. Dry run by default; with `apply: true` it saves in Amazon's flat write format and re-reads the routine to confirm the steps are really there
 
 **Lists**
 - `alexa_list_lists` — list shopping / to-do / custom lists
@@ -176,10 +177,10 @@ Once configured, you can ask Claude things like:
 ```
 alexa-mcp/
 ├── src/
-│   ├── index.js         # MCP server entry point — registers all 23 tools
+│   ├── index.js         # MCP server entry point — registers all 24 tools
 │   ├── alexa-client.js  # Thin wrapper around alexa-remote2
 │   ├── voice-history.js # Time windows and paging for alexa_get_voice_history
-│   ├── routines.js      # ID + name safety check for alexa_delete_routine
+│   ├── routines.js      # ID + name safety check, step builder and write body for the routine tools
 │   └── auth.js          # Interactive auth flow (run once)
 ├── .auth-data/          # OAuth tokens (created at first auth, git-ignored)
 ├── package.json
